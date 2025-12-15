@@ -1,0 +1,19 @@
+OOOOOOOOOOOOOOOOOOOOOOOOOOO
+O       O           O     O
+O OOOOO O OOOOOOOOO O OOO O
+O O   O O O       O O O   O
+O O O O O O OOOOO O O O OOO
+O   O O   O     O O   O   O
+OOOOO OOOOOOOOO O OOOOOOO O
+O     O       O O       O O
+O OOOOO OOOOO O OOOOOOO O O
+O O     O   O O O     O O O
+O O OOOOO O O O O OOO O O O
+O O     O O   O   O   O   O
+O OOOOO O OOOOOOOOO OOOOO O
+O O     O           O     O
+O O OOOOOOOOOOOOOOOOO OOOOO
+O O O     O       O   O   O
+O O O OOO O OOOOO O OOO O O
+O     O     O     O     O O
+OOOOOOOOOOOOOOOOOOOOOOOOOOO

@@ -1,0 +1,16 @@
+20 20 760 40 wall.png
+20 20 40 560 wall.png
+20 540 760 40 wall.png
+740 20 40 560 wall.png
+
+120 60 40 310 wood.png
+560 60 40 290 wood.png
+160 150 180 40 wood.png
+160 250 140 40 wood.png
+380 350 300 40 wood.png
+60 440 250 40 wood.png
+
+70 70 40 40 star.png
+500 150 40 40 star.png
+610 300 40 40 star.png
+150 490 40 40 star.png
