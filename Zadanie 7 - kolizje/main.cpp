@@ -1,227 +1,126 @@
 #include <SFML/Graphics.hpp>
-#include <iostream>
-#include <fstream>
-#include <vector>
 #include <string>
-#include <cmath>
-#include <optional>
-#include <algorithm>
-#include <random>
+#include "Level.h"
+#include "Camera.h"
+#include "Player.h"
+#include "GameOverScreen.h"
 
-// --- MATEMATYKA (Dla kamery i wskaźnika) ---
+int main() {
+    sf::RenderWindow window(sf::VideoMode({ 800, 600 }), "Zadanie 7 - kolizje");
+    window.setFramerateLimit(60);
 
-float length(sf::Vector2f v) {
-    return std::sqrt(v.x * v.x + v.y * v.y);
-}
+    int dogScore = 0;
+    int catScore = 0;
+    int currentLevelIndex = 1;
+    bool isGameFinished = false;
 
-sf::Vector2f normalize(sf::Vector2f v) {
-    float l = length(v);
-    if (l != 0.f) return v / l;
-    return v;
-}
+    GameOverScreen gameOverScreen;
+    Level currentLevel;
+    Camera gameCamera((sf::Vector2f)window.getSize());
 
-// --- STRUKTURA GRY ---
+    Player playerDog("textures/dog.png", CollisionShape::Square, { 0,0 },
+        sf::Keyboard::Key::W, sf::Keyboard::Key::S,
+        sf::Keyboard::Key::A, sf::Keyboard::Key::D);
 
-struct Game {
-    sf::RenderWindow& window;
+    Player playerCat("textures/cat.png", CollisionShape::Circle, { 0,0 },
+        sf::Keyboard::Key::Up, sf::Keyboard::Key::Down,
+        sf::Keyboard::Key::Left, sf::Keyboard::Key::Right);
 
-    // Zasoby
-    sf::Texture wallTex, dogTex, catTex, starTex;
+    auto loadNextLevel = [&]() {
+        if (currentLevelIndex > 3) {
+            isGameFinished = true;
+            return;
+        }
 
-    // Obiekty
-    std::vector<sf::RectangleShape> walls;
-    std::vector<sf::Vector2f> emptySpots;
+        std::string filename = "levels/level" + std::to_string(currentLevelIndex) + ".txt";
+        if (!currentLevel.loadLevelFromFile(filename)) {
+            isGameFinished = true;
+            return;
+        }
 
-    sf::RectangleShape dog; // Pies (Kwadrat)
-    sf::CircleShape cat;    // Kot (Koło)
-    sf::Sprite goal;        // Cel
+        currentLevel.respawnTreat();
 
-    // Kamera i UI
-    sf::View view;
-    sf::ConvexShape arrow;
-    sf::Vector2f cameraCenter;
-    float currentZoom = 1.0f;
-    float tileSize = 50.f;
+        playerDog.getSprite().setPosition(currentLevel.findRandomEmptyPosition());
+        playerCat.getSprite().setPosition(currentLevel.findRandomEmptyPosition());
 
-    Game(sf::RenderWindow& win) : window(win) {
-        // 1. Ładowanie tekstur
-        if (!wallTex.loadFromFile("textures/pinkwool.jpg")) {}
-        if (!dogTex.loadFromFile("textures/dog.png")) {}
-        if (!catTex.loadFromFile("textures/cat.png")) {}
-        if (!starTex.loadFromFile("textures/treat.png")) {}
+        playerDog.velocity = { 0.f, 0.f };
+        playerCat.velocity = { 0.f, 0.f };
 
-        dogTex.setSmooth(true);
-        catTex.setSmooth(true);
+        gameCamera = Camera((sf::Vector2f)window.getSize());
+        gameCamera.updateCameraPosition(playerDog.getSprite(), playerCat.getSprite());
+    };
 
-        // 2. Konfiguracja Psa
-        dog.setSize({ 30.f, 30.f });
-        dog.setOrigin({ 15.f, 15.f });
-        dog.setTexture(&dogTex);
+    auto restartGame = [&]() {
+        dogScore = 0;
+        catScore = 0;
+        currentLevelIndex = 1;
+        isGameFinished = false;
+        loadNextLevel();
+    };
 
-        // 3. Konfiguracja Kota
-        cat.setRadius(15.f);
-        cat.setOrigin({ 15.f, 15.f });
-        cat.setTexture(&catTex);
+    loadNextLevel();
 
-        // 4. Konfiguracja Celu
-        goal.setTexture(starTex);
-        sf::Vector2f texSize(starTex.getSize());
-        goal.setOrigin(texSize / 2.f);
-        goal.setScale({ 0.5f, 0.5f });
+    while (window.isOpen()) {
+        while (const std::optional<sf::Event> event = window.pollEvent()) {
+            if (event->is<sf::Event::Closed>()) window.close();
 
-        // 5. Konfiguracja Wskaźnika (Strzałki)
-        arrow.setPointCount(3);
-        arrow.setPoint(0, { 0.f, 0.f });
-        arrow.setPoint(1, { -10.f, 20.f });
-        arrow.setPoint(2, { 10.f, 20.f });
-        arrow.setFillColor(sf::Color::Red);
-        arrow.setOrigin({ 0.f, 10.f });
-
-        view = window.getDefaultView();
-        cameraCenter = view.getCenter();
-    }
-
-    // Funkcja ładująca poziom z pliku
-    bool loadLevel(const std::string& filename) {
-        std::ifstream file(filename);
-        if (!file.is_open()) return false;
-
-        walls.clear();
-        emptySpots.clear();
-
-        std::string line;
-        int row = 0;
-        while (std::getline(file, line)) {
-            for (size_t col = 0; col < line.size(); ++col) {
-                sf::Vector2f pos(col * tileSize, row * tileSize);
-
-                if (line[col] == 'O') {
-                    // Tworzenie ściany
-                    sf::RectangleShape w({ tileSize, tileSize });
-                    w.setPosition(pos);
-                    w.setTexture(&wallTex);
-                    walls.push_back(w);
-                }
-                else if (line[col] != '\r' && line[col] != '\n') {
-                    // Zapisanie wolnego miejsca (środek kratki)
-                    emptySpots.push_back(pos + sf::Vector2f(tileSize / 2.f, tileSize / 2.f));
+            if (isGameFinished && event->is<sf::Event::KeyPressed>()) {
+                if (event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Space) {
+                    restartGame();
                 }
             }
-            row++;
         }
 
-        if (emptySpots.size() < 3) return false;
+        window.clear(sf::Color(255, 241, 203));
 
-        // Losowanie pozycji startowych
-        std::shuffle(emptySpots.begin(), emptySpots.end(), std::mt19937(std::random_device()()));
+        if (!isGameFinished) {
+            playerDog.handleInput();
+            playerCat.handleInput();
 
-        dog.setPosition(emptySpots[0]);
-        cat.setPosition(emptySpots[1]);
-        goal.setPosition(emptySpots[2]);
+            playerDog.applyMovementX();
+            currentLevel.resolveWallCollisions(playerDog, true);
+            playerCat.applyMovementX();
+            currentLevel.resolveWallCollisions(playerCat, true);
 
-        return true;
-    }
+            playerDog.applyMovementY();
+            currentLevel.resolveWallCollisions(playerDog, false);
+            playerCat.applyMovementY();
+            currentLevel.resolveWallCollisions(playerCat, false);
 
-    // Funkcja aktualizująca (Ruch + Kamera)
-    void update() {
-        float speed = 5.f;
+            currentLevel.constrainPlayerToMap(playerDog.getSprite());
+            currentLevel.constrainPlayerToMap(playerCat.getSprite());
 
-        // --- RUCH PSA (WSAD) ---
-        sf::Vector2f dogMove(0.f, 0.f);
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) dogMove.y -= speed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) dogMove.y += speed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) dogMove.x -= speed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) dogMove.x += speed;
+            sf::FloatRect treatBounds = currentLevel.treatSprite.getGlobalBounds();
+            if (playerDog.getSprite().getGlobalBounds().findIntersection(treatBounds)) {
+                dogScore++;
+                currentLevelIndex++;
+                loadNextLevel();
+            }
+            else if (playerCat.getSprite().getGlobalBounds().findIntersection(treatBounds)) {
+                catScore++;
+                currentLevelIndex++;
+                loadNextLevel();
+            }
 
-        dog.move(dogMove); // Brak sprawdzania kolizji!
+            gameCamera.keepPlayerInView(playerDog.getSprite());
+            gameCamera.keepPlayerInView(playerCat.getSprite());
 
-        // --- RUCH KOTA (STRZAŁKI) ---
-        sf::Vector2f catMove(0.f, 0.f);
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) catMove.y -= speed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) catMove.y += speed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) catMove.x -= speed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) catMove.x += speed;
+            playerDog.updateDirectionArrow(currentLevel.getTreatPosition());
+            playerCat.updateDirectionArrow(currentLevel.getTreatPosition());
 
-        cat.move(catMove); // Brak sprawdzania kolizji!
+            gameCamera.updateCameraPosition(playerDog.getSprite(), playerCat.getSprite());
 
-        // --- KAMERA (Zoom-to-fit + Lerp) ---
-        sf::Vector2f p1 = dog.getPosition();
-        sf::Vector2f p2 = cat.getPosition();
-        sf::Vector2f targetCenter = (p1 + p2) * 0.5f;
-
-        sf::Vector2f baseSize(800.f, 600.f);
-        float padding = 150.f;
-        float width = std::abs(p1.x - p2.x) + padding;
-        float height = std::abs(p1.y - p2.y) + padding;
-
-        float zx = width / baseSize.x;
-        float zy = height / baseSize.y;
-        float targetZoom = std::clamp(std::max(zx, zy), 0.6f, 2.5f);
-
-        // Wygładzanie ruchu (Lerp)
-        float lerp = 0.1f;
-        cameraCenter += (targetCenter - cameraCenter) * lerp;
-        currentZoom += (targetZoom - currentZoom) * lerp;
-
-        view.setSize(baseSize * currentZoom);
-        view.setCenter(cameraCenter);
-        window.setView(view);
-    }
-
-    // Funkcja rysująca
-    void draw() {
-        window.clear(sf::Color(255, 241, 203)); // Tło kremowe
-
-        // Rysowanie ścian (tylko widocznych na ekranie)
-        sf::FloatRect viewRect(view.getCenter() - view.getSize() / 2.f, view.getSize());
-        for (const auto& w : walls) {
-            if (w.getGlobalBounds().findIntersection(viewRect))
-                window.draw(w);
+            window.setView(gameCamera.gameView);
+            currentLevel.draw(window);
+            playerDog.draw(window);
+            playerCat.draw(window);
         }
-
-        window.draw(goal);
-        window.draw(dog);
-        window.draw(cat);
-
-        // Rysowanie strzałki wskaźnika (jeśli cel poza ekranem)
-        if (!viewRect.contains(goal.getPosition())) {
-            sf::Vector2f dir = goal.getPosition() - view.getCenter();
-            float angle = std::atan2(dir.y, dir.x) * 180.f / 3.14159f;
-            sf::Vector2f arrowPos = view.getCenter() + normalize(dir) * (view.getSize().y / 2.3f);
-
-            arrow.setPosition(arrowPos);
-            arrow.setRotation(sf::degrees(angle + 90.f));
-            arrow.setScale({ currentZoom, currentZoom });
-            window.draw(arrow);
+        else {
+            window.setView(window.getDefaultView());
+            gameOverScreen.draw(window, dogScore, catScore);
         }
 
         window.display();
     }
-};
-
-int main() {
-    sf::RenderWindow window(sf::VideoMode({ 800, 600 }), "Projekt Labirynt - Podstawy");
-    window.setFramerateLimit(60);
-
-    Game game(window);
-
-    // Wczytujemy tylko pierwszy poziom dla testu
-    if (!game.loadLevel("level1.txt")) {
-        std::cerr << "Nie udalo sie wczytac level1.txt. Upewnij sie, ze plik istnieje!\n";
-        return 1;
-    }
-
-    while (window.isOpen()) {
-        // Obsługa zdarzeń SFML 3.0
-        while (const std::optional<sf::Event> event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
-                window.close();
-            }
-        }
-
-        game.update();
-        game.draw();
-    }
-
     return 0;
 }

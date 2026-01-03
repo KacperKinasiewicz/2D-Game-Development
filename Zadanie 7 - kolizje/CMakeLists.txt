@@ -1,4 +1,12 @@
-add_executable(Zadanie7_KolizjeGraczy main.cpp)
+add_executable(Zadanie7_KolizjeGraczy main.cpp
+        Camera.cpp
+        Camera.h
+        Level.cpp
+        Level.h
+        Player.cpp
+        Player.h
+        GameOverScreen.cpp
+        GameOverScreen.h)
 
 target_link_libraries(Zadanie7_KolizjeGraczy PRIVATE SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network)
 
