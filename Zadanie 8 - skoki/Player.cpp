@@ -58,8 +58,8 @@ void Player::handleInput() {
     isDropping = sf::Keyboard::isKeyPressed(kDown);
 }
 
-void Player::applyMovementX() {
-    sprite.move({ velocity.x * (1.f / 60.f), 0.f });
+void Player::applyMovementX(float dt) {
+    sprite.move({ velocity.x * dt, 0.f });
 }
 
 void Player::applyMovementY(float dt) {

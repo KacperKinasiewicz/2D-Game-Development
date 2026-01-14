@@ -3,10 +3,21 @@
 #include <string>
 #include <iomanip>
 #include <sstream>
+#include <algorithm>
 #include "Level.h"
 #include "Player.h"
 #include "Camera.h"
 #include "GameOverScreen.h"
+
+const float winW = 1600.f;
+const float winH = 900.f;
+const float divW = 50.f;
+const float uiH = 50.f;
+const float viewW = (winW - divW) / 2.f;
+const float viewH = winH - uiH;
+const float wRatio = viewW / winW;
+const float hRatio = viewH / winH;
+const float divRatio = divW / winW;
 
 void updateInfoText(sf::Text& text, const Player& p) {
     std::stringstream ss;
@@ -20,7 +31,7 @@ void updateInfoText(sf::Text& text, const Player& p) {
     text.setString(ss.str());
     sf::FloatRect textBounds = text.getLocalBounds();
     text.setOrigin({ textBounds.position.x + textBounds.size.x / 2.f, textBounds.position.y + textBounds.size.y / 2.f });
-    text.setPosition({ 800.f, 875.f });
+    text.setPosition({ winW / 2.f, winH - (uiH / 2.f) });
 }
 
 void handleParameterInput(sf::Keyboard::Key code, Player& p1, Player& p2) {
@@ -43,7 +54,7 @@ void handleParameterInput(sf::Keyboard::Key code, Player& p1, Player& p2) {
 }
 
 int main() {
-    sf::RenderWindow window(sf::VideoMode({ 1600, 900 }), "Zadanie 8 - Skoki");
+    sf::RenderWindow window(sf::VideoMode({ static_cast<unsigned int>(winW), static_cast<unsigned int>(winH) }), "Zadanie 8 - Skoki");
     window.setFramerateLimit(60);
 
     Level level;
@@ -56,15 +67,15 @@ int main() {
     uiText.setCharacterSize(15);
     uiText.setFillColor(sf::Color::Black);
 
-    sf::RectangleShape uiBackground({ 1600.f, 50.f });
+    sf::RectangleShape uiBackground({ winW, uiH });
     uiBackground.setFillColor(sf::Color(255, 241, 203));
     uiBackground.setOutlineThickness(-3.f);
     uiBackground.setOutlineColor(sf::Color(243, 135, 187));
-    uiBackground.setPosition({ 0.f, 850.f });
+    uiBackground.setPosition({ 0.f, viewH });
 
-    sf::RectangleShape divider({ 50.f, 850.f });
+    sf::RectangleShape divider({ divW, viewH });
     divider.setFillColor(sf::Color(255, 241, 203));
-    divider.setPosition({ 775.f, 0.f });
+    divider.setPosition({ viewW, 0.f });
 
     float startY = level.getMapHeight() - (level.tileSize * 1.5f);
     Player pDog("textures/dog.png", { level.tileSize * 2.5f, startY }, sf::Keyboard::Key::W, sf::Keyboard::Key::S, sf::Keyboard::Key::A, sf::Keyboard::Key::D, CollisionShape::Rectangle);
@@ -76,8 +87,8 @@ int main() {
     dogI.setScale({ 100.f / dogT.getSize().x, 100.f / dogT.getSize().x });
     catI.setScale({ 100.f / catT.getSize().x, 100.f / catT.getSize().x });
 
-    Camera dogCam({ 1600.f, 850.f }, level.getMapWidth());
-    Camera catCam({ 1600.f, 850.f }, level.getMapWidth());
+    Camera dogCam({ winW, viewH }, level.getMapWidth());
+    Camera catCam({ winW, viewH }, level.getMapWidth());
     GameOverScreen gos;
 
     bool isGameFinished = false;
@@ -89,10 +100,10 @@ int main() {
         pDog.getSprite().setPosition({ level.tileSize * 2.5f, sY }); pDog.velocity = { 0.f, 0.f }; pDog.isGrounded = false;
         pCat.getSprite().setPosition({ level.getMapWidth() - (level.tileSize * 2.5f), sY }); pCat.velocity = { 0.f, 0.f }; pCat.isGrounded = false;
         isGameFinished = false; winner = "";
-        dogCam = Camera({ 1600.f, 850.f }, level.getMapWidth());
-        catCam = Camera({ 1600.f, 850.f }, level.getMapWidth());
-        dogCam.gameView.setViewport(sf::FloatRect({ 0.f, 0.f }, { 0.484375f, 850.f / 900.f }));
-        catCam.gameView.setViewport(sf::FloatRect({ 0.515625f, 0.f }, { 0.484375f, 850.f / 900.f }));
+        dogCam = Camera({ winW, viewH }, level.getMapWidth());
+        catCam = Camera({ winW, viewH }, level.getMapWidth());
+        dogCam.gameView.setViewport(sf::FloatRect({ 0.f, 0.f }, { wRatio, hRatio }));
+        catCam.gameView.setViewport(sf::FloatRect({ wRatio + divRatio, 0.f }, { wRatio, hRatio }));
         dogCam.currentCenter = { level.getMapWidth() / 2.f, level.getMapHeight() - dogCam.gameView.getSize().y / 2.f };
         catCam.currentCenter = { level.getMapWidth() / 2.f, level.getMapHeight() - catCam.gameView.getSize().y / 2.f };
     };
@@ -112,8 +123,8 @@ int main() {
 
         if (!isGameFinished) {
             float dt = 1.f / 60.f;
-            pDog.handleInput(); pDog.applyMovementX(); level.resolveWallCollisions(pDog, true); pDog.applyMovementY(dt); level.resolveWallCollisions(pDog, false);
-            pCat.handleInput(); pCat.applyMovementX(); level.resolveWallCollisions(pCat, true); pCat.applyMovementY(dt); level.resolveWallCollisions(pCat, false);
+            pDog.handleInput(); pDog.applyMovementX(dt); level.resolveWallCollisions(pDog, true); pDog.applyMovementY(dt); level.resolveWallCollisions(pDog, false);
+            pCat.handleInput(); pCat.applyMovementX(dt); level.resolveWallCollisions(pCat, true); pCat.applyMovementY(dt); level.resolveWallCollisions(pCat, false);
             dogCam.updateCameraPosition(pDog.getSprite(), level.getMapWidth(), level.getMapHeight());
             catCam.updateCameraPosition(pCat.getSprite(), level.getMapWidth(), level.getMapHeight());
 
